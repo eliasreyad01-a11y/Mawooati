@@ -36,8 +36,9 @@ class SupabaseAuthRepository implements AuthRepository {
       throw AppException(_arabic(e));
     } on AppException {
       rethrow;
-    } catch (_) {
-      throw const AppException('تعذّر الاتصال. تحقق من الإنترنت وحاول مجدداً.');
+    } catch (e) {
+      throw AppException(
+          'تعذّر الاتصال. تحقق من الإنترنت وحاول مجدداً.\n(${e.runtimeType}: $e)');
     }
   }
 
@@ -56,7 +57,10 @@ class SupabaseAuthRepository implements AuthRepository {
       case 'over_email_send_rate_limit':
         return 'محاولات كثيرة. انتظر قليلاً ثم حاول مجدداً.';
       default:
-        return 'تعذّر إتمام العملية. حاول مجدداً.';
+        final detail = [e.statusCode, e.code, e.message]
+            .where((x) => x != null && x.toString().isNotEmpty)
+            .join(' | ');
+        return 'تعذّر إتمام العملية. حاول مجدداً.\n($detail)';
     }
   }
 
