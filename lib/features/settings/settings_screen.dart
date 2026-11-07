@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mawoonati/core/l10n/strings.dart';
+import 'package:mawoonati/core/session/session_gate.dart';
 import 'package:mawoonati/core/settings/settings_provider.dart';
 import 'package:mawoonati/core/theme/app_spacing.dart';
 import 'package:mawoonati/features/auth/auth_repository.dart';
@@ -33,22 +35,44 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          AppCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.person_outline),
-                  title: const Text('الحساب'),
-                  subtitle: Text(ref.watch(authRepositoryProvider).email ?? ''),
+          ListenableBuilder(
+            listenable: ref.watch(sessionGateProvider),
+            builder: (context, _) {
+              final signedIn = ref.read(sessionGateProvider).signedIn;
+              return AppCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: signedIn
+                      ? [
+                          ListTile(
+                            leading: const Icon(Icons.person_outline),
+                            title: const Text('الحساب'),
+                            subtitle: Text(
+                                ref.read(authRepositoryProvider).email ?? ''),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.logout),
+                            title: const Text('تسجيل الخروج'),
+                            onTap: () =>
+                                ref.read(authRepositoryProvider).signOut(),
+                          ),
+                        ]
+                      : [
+                          const ListTile(
+                            leading: Icon(Icons.person_outline),
+                            title: Text('أنت تستخدم التطبيق بدون حساب'),
+                            subtitle: Text(
+                                'تسجيل الدخول اختياري، لمزامنة بياناتك ومشاركتها مع العائلة.'),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.login),
+                            title: const Text('تسجيل الدخول / إنشاء حساب'),
+                            onTap: () => context.push('/login'),
+                          ),
+                        ],
                 ),
-                ListTile(
-                  leading: const Icon(Icons.logout),
-                  title: const Text('تسجيل الخروج'),
-                  onTap: () => ref.read(authRepositoryProvider).signOut(),
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ],
       ),

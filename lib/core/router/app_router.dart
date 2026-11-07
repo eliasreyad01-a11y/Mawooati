@@ -49,7 +49,8 @@ const _authPaths = {'/login', '/signup', '/forgot'};
 /// منطق التوجيه حسب حالة الجلسة. شاشة البداية ('/') لا تُعاد توجيهها.
 String? sessionRedirect(SessionGate g, String loc) {
   if (loc == '/') return null;
-  if (!g.signedIn) return _authPaths.contains(loc) ? null : '/login';
+  // تسجيل الدخول اختياري: الزائر يستخدم التطبيق بدون حساب.
+  if (!g.signedIn) return null;
   if (g.hasHousehold == null) return loc == '/loading' ? null : '/loading';
   if (!g.hasHousehold!) return loc == '/setup' ? null : '/setup';
   if (_authPaths.contains(loc) || loc == '/setup' || loc == '/loading') return '/home';

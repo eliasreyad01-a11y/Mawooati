@@ -51,11 +51,10 @@ void main() {
     expect(prefs.getBool('reduce_motion'), isFalse);
   });
 
-  testWidgets('signed-out user is sent to login, not home', (tester) async {
+  testWidgets('signed-out user can use the app (login is optional)', (tester) async {
     await _pump(tester, await testOverrides(auth: FakeAuth(signedIn: false)));
     await tester.pumpAndSettle(const Duration(seconds: 2));
-    expect(find.text('تسجيل الدخول'), findsWidgets);
-    expect(find.text('مرحباً بك في مؤونتي'), findsNothing);
+    expect(find.text('مرحباً بك في مؤونتي'), findsOneWidget);
   });
 
   testWidgets('signed-in user without household is sent to setup', (tester) async {

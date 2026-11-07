@@ -26,6 +26,7 @@ jobs:
           if [ ! -d android ]; then
             flutter create --project-name mawoonati --org com.mawoonati --platforms android,ios .
           fi
+          rm -f test/widget_test.dart
 
       - run: flutter pub get
       - run: dart run flutter_launcher_icons
