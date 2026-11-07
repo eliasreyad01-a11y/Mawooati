@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -52,3 +55,11 @@ jobs:
         with:
           name: mawoonati-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Publish APK as a release (direct download link)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk mawoonati.apk
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest mawoonati.apk --title "مؤونتي - أحدث نسخة" --notes "أحدث APK" --latest
