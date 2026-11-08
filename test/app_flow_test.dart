@@ -10,28 +10,41 @@ import 'fakes.dart';
 Future<void> _pump(WidgetTester t, List<Override> o) =>
     t.pumpWidget(ProviderScope(overrides: o, child: const MawoonatiApp()));
 
+/// يمرّر الوقت حتى تنتهي شاشة البداية (بما فيها مهلة التقليل من الحركة) وتستقر الشاشة.
+Future<void> _settle(WidgetTester t) async {
+  await t.pumpAndSettle(const Duration(seconds: 4));
+  await t.pump(const Duration(milliseconds: 600));
+  await t.pumpAndSettle(const Duration(seconds: 2));
+}
+
+Future<void> _openLogin(WidgetTester t) async {
+  await t.tap(find.byTooltip('الإعدادات'));
+  await t.pumpAndSettle();
+  await t.tap(find.text('تسجيل الدخول / إنشاء حساب'));
+  await t.pumpAndSettle();
+}
+
 void main() {
   testWidgets('splash leads to RTL home with honest empty state', (tester) async {
     await _pump(tester, await testOverrides(prefs: {}));
     expect(find.text('منزلك أذكى.. وحياتك أسهل'), findsOneWidget);
-    await tester.pumpAndSettle(const Duration(seconds: 4));
+    await _settle(tester);
     expect(find.text('مرحباً بك في مؤونتي'), findsOneWidget);
     final dir = Directionality.of(tester.element(find.byType(Scaffold).first));
     expect(dir, TextDirection.rtl);
-    expect(find.text('لم تُحدَّد بعد'), findsNWidgets(2));
+    expect(find.text('لم تُحدَّد بعد'), findsOneWidget);
     expect(find.text('تصوير الفواتير'), findsOneWidget);
   });
 
   testWidgets('reduce motion skips the long splash', (tester) async {
     await _pump(tester, await testOverrides());
-    await tester.pump(const Duration(milliseconds: 1000));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(find.text('مرحباً بك في مؤونتي'), findsOneWidget);
   });
 
   testWidgets('More lists sections and opens a built one', (tester) async {
     await _pump(tester, await testOverrides());
-    await tester.pumpAndSettle(const Duration(seconds: 2));
+    await _settle(tester);
     await tester.tap(find.text('المزيد'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('أماكن التخزين'), 100);
@@ -42,7 +55,7 @@ void main() {
 
   testWidgets('reduce-motion toggle persists', (tester) async {
     await _pump(tester, await testOverrides());
-    await tester.pumpAndSettle(const Duration(seconds: 2));
+    await _settle(tester);
     await tester.tap(find.byTooltip('الإعدادات'));
     await tester.pumpAndSettle();
     await tester.tap(find.byType(Switch));
@@ -53,21 +66,21 @@ void main() {
 
   testWidgets('signed-out user can use the app (login is optional)', (tester) async {
     await _pump(tester, await testOverrides(auth: FakeAuth(signedIn: false)));
-    await tester.pumpAndSettle(const Duration(seconds: 2));
+    await _settle(tester);
     expect(find.text('مرحباً بك في مؤونتي'), findsOneWidget);
   });
 
   testWidgets('signed-in user without household is sent to setup', (tester) async {
     await _pump(tester,
         await testOverrides(households: FakeHouseholds(hasOne: false)));
-    await tester.pumpAndSettle(const Duration(seconds: 2));
+    await _settle(tester);
     expect(find.text('إعداد منزلك'), findsOneWidget);
   });
 
   testWidgets('setup creates household then reaches home', (tester) async {
     await _pump(tester,
         await testOverrides(households: FakeHouseholds(hasOne: false)));
-    await tester.pumpAndSettle(const Duration(seconds: 2));
+    await _settle(tester);
     await tester.enterText(find.byType(TextFormField).first, 'بيت العائلة');
     await tester.tap(find.text('إنشاء المنزل'));
     await tester.pumpAndSettle();
@@ -79,7 +92,8 @@ void main() {
         signInError: const AppException('البريد الإلكتروني أو كلمة المرور غير صحيحة.'));
     auth.signedIn = false;
     await _pump(tester, await testOverrides(auth: auth));
-    await tester.pumpAndSettle(const Duration(seconds: 2));
+    await _settle(tester);
+    await _openLogin(tester);
 
     await tester.tap(find.text('دخول'));
     await tester.pump();
@@ -96,7 +110,8 @@ void main() {
   testWidgets('successful login reaches home', (tester) async {
     final auth = FakeAuth(signedIn: false);
     await _pump(tester, await testOverrides(auth: auth));
-    await tester.pumpAndSettle(const Duration(seconds: 2));
+    await _settle(tester);
+    await _openLogin(tester);
     await tester.enterText(find.byType(TextFormField).at(0), 'a@b.com');
     await tester.enterText(find.byType(TextFormField).at(1), 'secret123');
     await tester.tap(find.text('دخول'));
