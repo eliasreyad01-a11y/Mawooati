@@ -16,11 +16,11 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
+    final radius = BorderRadius.circular(AppSpacing.cardRadius);
+    // الظل في طبقة خارجية، والمحتوى على Material ليظهر تأثير اللمس داخل ListTile.
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        borderRadius: radius,
         boxShadow: const [
           BoxShadow(
             color: Color(0x14000000),
@@ -29,7 +29,12 @@ class AppCard extends StatelessWidget {
           ),
         ],
       ),
-      child: child,
+      child: Material(
+        color: color,
+        borderRadius: radius,
+        clipBehavior: Clip.antiAlias,
+        child: Padding(padding: padding, child: child),
+      ),
     );
   }
 }

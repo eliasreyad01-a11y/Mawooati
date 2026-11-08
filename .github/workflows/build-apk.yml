@@ -53,6 +53,26 @@ jobs:
         run: flutter test
         continue-on-error: true
 
+      - name: Use Google's Maven Central mirror (avoids GitHub 504 on large jars)
+        run: |
+          mkdir -p ~/.gradle/init.d
+          cat > ~/.gradle/init.d/mirror.gradle <<'EOF'
+          def mirror = 'https://maven-central.storage-download.googleapis.com/maven2'
+          def fix = { repo ->
+            if (repo instanceof MavenArtifactRepository && repo.url.toString().contains('repo.maven.apache.org')) {
+              repo.setUrl(new URI(mirror))
+            }
+          }
+          beforeSettings { s ->
+            s.pluginManagement.repositories.all(fix)
+            s.dependencyResolutionManagement.repositories.all(fix)
+          }
+          allprojects {
+            buildscript.repositories.all(fix)
+            repositories.all(fix)
+          }
+          EOF
+
       - name: Build release APK
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
