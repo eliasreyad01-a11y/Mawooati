@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mawoonati/core/data/app_data.dart';
 import 'package:mawoonati/core/l10n/strings.dart';
+import 'package:mawoonati/core/utils/currency_formatter.dart';
 import 'package:mawoonati/core/sections.dart';
 import 'package:mawoonati/core/theme/app_colors.dart';
 import 'package:mawoonati/core/theme/app_spacing.dart';
@@ -32,6 +35,8 @@ class HomeScreen extends StatelessWidget {
                 const AnimatedEntrance(index: 1, child: _SummaryRow()),
                 const SizedBox(height: AppSpacing.md),
                 const AnimatedEntrance(index: 2, child: _BudgetUsageCard()),
+                const SizedBox(height: AppSpacing.md),
+                const AnimatedEntrance(index: 2, child: _StatsCard()),
                 const SizedBox(height: AppSpacing.md),
                 GridView.count(
                   crossAxisCount: 3,
@@ -137,26 +142,32 @@ class _WelcomeCard extends StatelessWidget {
   }
 }
 
-class _SummaryRow extends StatelessWidget {
+class _SummaryRow extends ConsumerWidget {
   const _SummaryRow();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final d = ref.watch(dataProvider);
+    final spent = d.spentInMonth(DateTime.now());
     // في RTL: الأول يظهر يميناً (الميزانية) ثم المصروف يساراً، مطابقاً للصورة.
-    return const Row(
+    return Row(
       children: [
         Expanded(
           child: _SummaryCard(
               id: 'budget',
               icon: Icons.shopping_basket_outlined,
-              label: S.monthlyBudget),
+              label: S.monthlyBudget,
+              value: d.budget > 0 ? formatMoney(d.budget) : '—',
+              sub: d.budget > 0 ? 'هذا الشهر' : S.notSet),
         ),
-        SizedBox(width: 12),
+        const SizedBox(width: 12),
         Expanded(
           child: _SummaryCard(
-              id: 'monthly',
+              id: 'reports',
               icon: Icons.paid_outlined,
-              label: S.monthlySpent),
+              label: S.monthlySpent,
+              value: spent > 0 ? formatMoney(spent) : '—',
+              sub: spent > 0 ? 'هذا الشهر' : 'لا مصاريف بعد'),
         ),
       ],
     );
@@ -164,11 +175,19 @@ class _SummaryRow extends StatelessWidget {
 }
 
 class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({required this.id, required this.icon, required this.label});
+  const _SummaryCard({
+    required this.id,
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.sub,
+  });
 
   final String id;
   final IconData icon;
   final String label;
+  final String value;
+  final String sub;
 
   @override
   Widget build(BuildContext context) {
@@ -182,10 +201,12 @@ class _SummaryCard extends StatelessWidget {
             Text(label,
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            const Text('—',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-            const Text(S.notSet,
-                style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            FittedBox(
+              child: Text(value,
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+            ),
+            Text(sub,
+                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
           ],
         ),
       ),
@@ -193,22 +214,59 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-class _BudgetUsageCard extends StatelessWidget {
+class _BudgetUsageCard extends ConsumerWidget {
   const _BudgetUsageCard();
 
   @override
-  Widget build(BuildContext context) {
-    return const AppCard(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final d = ref.watch(dataProvider);
+    final ratio = d.budget > 0 ? d.spentInMonth(DateTime.now()) / d.budget : null;
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(S.budgetUsage,
+          const Text(S.budgetUsage,
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
-          SizedBox(height: 10),
-          BudgetProgressBar(value: null),
-          SizedBox(height: 8),
-          Text(S.budgetEmpty,
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          const SizedBox(height: 10),
+          BudgetProgressBar(value: ratio),
+          const SizedBox(height: 8),
+          Text(
+              ratio == null
+                  ? S.budgetEmpty
+                  : '${(ratio * 100).round()}% من ميزانية الشهر',
+              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatsCard extends ConsumerWidget {
+  const _StatsCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final d = ref.watch(dataProvider);
+    Widget cell(String label, int n, Color c, String route) => Expanded(
+          child: InkWell(
+            onTap: () => context.go(route),
+            child: Column(
+              children: [
+                Text('$n',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: c)),
+                Text(label,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+        );
+    return AppCard(
+      child: Row(
+        children: [
+          cell('منتج في المخزون', d.products.length, AppColors.greenDark, '/inventory'),
+          cell('ينتهي قريباً', d.expiringSoon.length + d.expired.length, AppColors.warning, '/alerts'),
+          cell('على وشك النفاد', d.lowStock.length, AppColors.danger, '/alerts'),
         ],
       ),
     );

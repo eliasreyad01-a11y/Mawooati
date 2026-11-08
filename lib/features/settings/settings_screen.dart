@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mawoonati/core/data/app_data.dart';
 import 'package:mawoonati/core/l10n/strings.dart';
 import 'package:mawoonati/core/session/session_gate.dart';
 import 'package:mawoonati/core/settings/settings_provider.dart';
 import 'package:mawoonati/core/theme/app_spacing.dart';
 import 'package:mawoonati/features/auth/auth_repository.dart';
 import 'package:mawoonati/shared/widgets/app_card.dart';
+import 'package:mawoonati/shared/widgets/form_sheet.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -32,6 +34,29 @@ class SettingsScreen extends ConsumerWidget {
               onChanged: systemReduce
                   ? null
                   : (v) => ref.read(settingsProvider.notifier).setReduceMotion(v),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              leading: const Icon(Icons.psychology_outlined),
+              title: const Text('الذكاء الاصطناعي (Gemini)',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text(ref.watch(dataProvider).geminiKey.isEmpty
+                  ? 'غير مفعّل. أضف مفتاحاً مجانياً من aistudio.google.com لقراءة الفواتير والوصفات.'
+                  : 'مفعّل'),
+              onTap: () async {
+                final d = ref.read(dataProvider);
+                final r = await showForm(context, title: 'مفتاح Gemini', fields: [
+                  FieldSpec('key', 'المفتاح (اتركه فارغاً للإيقاف)', initial: d.geminiKey),
+                  FieldSpec('model', 'اسم النموذج', initial: d.geminiModel),
+                ]);
+                if (r != null) {
+                  ref.read(dataProvider.notifier).setGemini(
+                      key: r['key'] ?? '', model: r['model'] ?? '');
+                }
+              },
             ),
           ),
           const SizedBox(height: AppSpacing.md),

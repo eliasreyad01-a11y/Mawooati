@@ -29,15 +29,15 @@ void main() {
     expect(find.text('مرحباً بك في مؤونتي'), findsOneWidget);
   });
 
-  testWidgets('More lists sections; unbuilt one shows its phase', (tester) async {
+  testWidgets('More lists sections and opens a built one', (tester) async {
     await _pump(tester, await testOverrides());
     await tester.pumpAndSettle(const Duration(seconds: 2));
     await tester.tap(find.text('المزيد'));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('ماسح الباركود'), 100);
-    await tester.tap(find.text('ماسح الباركود'));
+    await tester.scrollUntilVisible(find.text('أماكن التخزين'), 100);
+    await tester.tap(find.text('أماكن التخزين'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('المرحلة 4'), findsOneWidget);
+    expect(find.text('الثلاجة'), findsOneWidget);
   });
 
   testWidgets('reduce-motion toggle persists', (tester) async {
