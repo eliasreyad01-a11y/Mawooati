@@ -57,10 +57,19 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: >
-          flutter build apk --release
-          --dart-define=SUPABASE_URL=$SUPABASE_URL
-          --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+        run: |
+          for i in 1 2 3; do
+            flutter build apk --release \
+              --dart-define=SUPABASE_URL=$SUPABASE_URL \
+              --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY && break
+            echo "Build attempt $i failed; retrying..."
+            if [ "$i" = "1" ]; then
+              # تحميل Gradle من مرآة بديلة إن فشل المصدر الرسمي
+              sed -i 's#https\\://services.gradle.org/distributions/#https\\://mirrors.cloud.tencent.com/gradle/#' android/gradle/wrapper/gradle-wrapper.properties
+            fi
+            sleep 20
+          done
+          test -f build/app/outputs/flutter-apk/app-release.apk
 
       - uses: actions/upload-artifact@v4
         with:
