@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mawoonati/core/data/app_data.dart';
 import 'package:mawoonati/core/theme/app_colors.dart';
 import 'package:mawoonati/features/inventory/inventory_screen.dart';
@@ -89,6 +90,23 @@ class _BarcodeScreenState extends ConsumerState<BarcodeScreen> {
     if (mounted) await _controller.start();
   }
 
+  Future<void> _fromPhoto() async {
+    try {
+      final f = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (f == null) return;
+      final cap = await _controller.analyzeImage(f.path);
+      final code = cap?.barcodes.isNotEmpty == true ? cap!.barcodes.first.rawValue : null;
+      if (!mounted) return;
+      if (code == null || code.isEmpty) {
+        snack(context, 'لم أجد باركود في الصورة.');
+      } else {
+        await _handle(code);
+      }
+    } catch (e) {
+      if (mounted) snack(context, 'تعذّر قراءة الصورة.');
+    }
+  }
+
   Future<void> _manual() async {
     final r = await showForm(context, title: 'إدخال الباركود يدوياً', fields: const [
       FieldSpec('code', 'رقم الباركود', required: true),
@@ -100,6 +118,11 @@ class _BarcodeScreenState extends ConsumerState<BarcodeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('ماسح الباركود'), actions: [
+        IconButton(
+          tooltip: 'مسح من صورة',
+          icon: const Icon(Icons.photo_library_outlined),
+          onPressed: _fromPhoto,
+        ),
         IconButton(
           tooltip: 'إدخال يدوي',
           icon: const Icon(Icons.keyboard),
@@ -132,8 +155,12 @@ class _BarcodeScreenState extends ConsumerState<BarcodeScreen> {
                   children: [
                     const Icon(Icons.no_photography_outlined, size: 48),
                     const SizedBox(height: 12),
-                    const Text('تعذّر تشغيل الكاميرا. اسمح للتطبيق باستخدامها من إعدادات الهاتف، أو أدخل الباركود يدوياً.',
+                    const Text('تعذّر تشغيل الكاميرا. اسمح للتطبيق باستخدامها من إعدادات الهاتف (التطبيقات ← مؤونتي ← الأذونات ← الكاميرا)، أو امسح من صورة، أو أدخل الباركود يدوياً.',
                         textAlign: TextAlign.center),
+                    const SizedBox(height: 8),
+                    Text('${error.errorCode.name}${error.errorDetails?.message != null ? ': ${error.errorDetails!.message}' : ''}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 11, color: Colors.grey)),
                     const SizedBox(height: 12),
                     FilledButton(onPressed: _manual, child: const Text('إدخال يدوي')),
                   ],

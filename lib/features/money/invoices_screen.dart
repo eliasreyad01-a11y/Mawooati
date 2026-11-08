@@ -11,6 +11,7 @@ import 'package:mawoonati/core/theme/app_colors.dart';
 import 'package:mawoonati/core/theme/app_spacing.dart';
 import 'package:mawoonati/core/utils/currency_formatter.dart';
 import 'package:mawoonati/features/common/empty_state.dart';
+import 'package:mawoonati/features/money/invoice_items_screen.dart';
 import 'package:mawoonati/shared/widgets/app_card.dart';
 import 'package:mawoonati/shared/widgets/form_sheet.dart';
 import 'package:path_provider/path_provider.dart';
@@ -31,8 +32,11 @@ class InvoicesScreen extends ConsumerWidget {
 
       Map<String, dynamic>? ai;
       final data = ref.read(dataProvider);
-      if (data.geminiKey.isNotEmpty) {
-        ai = await _readWithAi(context, data.geminiKey, data.geminiModel, bytes);
+      if (data.geminiKey.isEmpty) {
+        snack(context, 'لتحليل الفاتورة تلقائياً أضف مفتاح Gemini (الزر في أعلى الشاشة).');
+      } else {
+        ai = await _readWithAi(context, data.geminiKey, data.geminiModel, bytes,
+            [for (final l in data.locations) l.name]);
       }
       if (!context.mounted) return;
 
@@ -78,7 +82,13 @@ class InvoicesScreen extends ConsumerWidget {
                 date: date),
       ];
       if (pts.isNotEmpty) n.addPrices(pts);
-      if (context.mounted) snack(context, 'تم حفظ الفاتورة${pts.isNotEmpty ? ' وأسعار ${pts.length} صنف' : ''}');
+      if (!context.mounted) return;
+      snack(context, 'تم حفظ الفاتورة${pts.isNotEmpty ? ' وأسعار ${pts.length} صنف' : ''}');
+      final rows = parseInvoiceItems(items);
+      if (rows.isNotEmpty) {
+        final added = await showInvoiceItems(context, items: rows, date: date);
+        if (added > 0 && context.mounted) snack(context, 'أُضيف $added صنف إلى المخزون');
+      }
     } catch (e) {
       if (context.mounted) {
         snack(context, e is AppException ? e.message : 'تعذّر فتح الكاميرا أو الصورة.');
@@ -87,7 +97,7 @@ class InvoicesScreen extends ConsumerWidget {
   }
 
   Future<Map<String, dynamic>?> _readWithAi(
-      BuildContext context, String key, String model, Uint8List bytes) async {
+      BuildContext context, String key, String model, Uint8List bytes, List<String> places) async {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -103,10 +113,16 @@ class InvoicesScreen extends ConsumerWidget {
     String? err;
     try {
       final text = await GeminiClient(key, model).generate(
-        'Read this shopping receipt. Reply with JSON only, no prose: '
+        'Read this shopping receipt (Arabic or English). Reply with JSON only, no prose: '
         '{"store": string, "total": number, "date": "YYYY-MM-DD", '
-        '"items": [{"name": string, "qty": number, "price": number}]} '
-        'where price is the unit price. Keep item names in their original language. '
+        '"items": [{"name": string, "qty": number, "unit": string, "price": number, '
+        '"place": string, "shelf_life_days": number}]}. '
+        'price is the unit price. unit is one of: حبة, كغم, غم, لتر, علبة, كيس, عبوة, ربطة. '
+        'place MUST be exactly one of these home storage places: ${places.join(', ')} - '
+        'choose where this food item is normally kept (e.g. milk and vegetables in the fridge, '
+        'frozen meat in the freezer, rice and cans in the pantry). '
+        'shelf_life_days is the typical days until it expires after purchase (0 if non-perishable or unknown). '
+        'Skip non-food lines like tax, discounts or bags. Keep item names in their original language. '
         'Use null for anything unreadable.',
         image: bytes,
       );
@@ -126,7 +142,22 @@ class InvoicesScreen extends ConsumerWidget {
     final list = data.expenses.where((e) => e.source == 'invoice').toList()
       ..sort((a, b) => b.date.compareTo(a.date));
     return Scaffold(
-      appBar: AppBar(title: const Text('تصوير الفواتير')),
+      appBar: AppBar(title: const Text('تصوير الفواتير'), actions: [
+        IconButton(
+          tooltip: 'مفتاح الذكاء الاصطناعي (Gemini)',
+          icon: Icon(data.geminiKey.isEmpty ? Icons.key_off_outlined : Icons.key),
+          onPressed: () async {
+            final r = await showForm(context, title: 'مفتاح Gemini', fields: [
+              FieldSpec('key', 'الصق المفتاح هنا (مجاني من aistudio.google.com)',
+                  initial: data.geminiKey),
+              FieldSpec('model', 'اسم النموذج', initial: data.geminiModel),
+            ]);
+            if (r != null) {
+              ref.read(dataProvider.notifier).setGemini(key: r['key'] ?? '', model: r['model'] ?? '');
+            }
+          },
+        ),
+      ]),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showModalBottomSheet<void>(
           context: context,
