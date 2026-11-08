@@ -124,7 +124,7 @@ class _BarcodeScreenState extends ConsumerState<BarcodeScreen> {
                 }
               }
             },
-            errorBuilder: (context, error) => Center(
+            errorBuilder: (context, error, _) => Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
